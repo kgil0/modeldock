@@ -1,14 +1,32 @@
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi import FastAPI
 from pydantic import BaseModel
 import requests
 
 app = FastAPI()
 
+app.add_middleware(
+	CORSMiddleware,
+	allow_origins=["http://49.12.244.57:3000"],
+	allow_credentials=True,
+	allow_methods=["*"],
+	allow_headers=["*"],
+)
+
 OLLAMA_URL = "http://127.0.0.1:11434"
+
+nodes = []
 
 class ChatRequest(BaseModel):
 	model: str
 	prompt: str
+
+class NodeRequest(BaseModel):
+	id: str
+	name: str
+	status: str
+	gpu: str
+	models: list[str]
 
 @app.get("/health")
 def health():
@@ -55,3 +73,19 @@ def chat(request: ChatRequest):
 			"status": "error",
 			"message": str(e)
 		}
+
+@app.post("/register-node")
+def register_node(node: NodeRequest):
+	global nodes
+
+	existing = next((n for n in nodes if n["id"] ==node.id), None)
+
+	if existing:
+		existing.update(node.dict())
+	else:
+		nodes.append(node.dict())
+	return {"status": "registered"}
+
+@app.get("/nodes")
+def get_nodes():
+	return nodes
