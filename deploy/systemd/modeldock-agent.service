@@ -1,0 +1,14 @@
+[Unit]
+Description=ModelDock Node Agent
+After=network.target modeldock-backend.service ollama.service
+Requires=modeldock-backend.service ollama.service
+
+[Service]
+User=deploy
+WorkingDirectory=/home/deploy/modeldock/agent
+ExecStart=/home/deploy/modeldock/backend/venv/bin/python /home/deploy/modeldock/agent/agent.py
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
