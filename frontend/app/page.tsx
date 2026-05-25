@@ -12,10 +12,10 @@ export default function Home() {
 
   async function loadData() {
     try {
-      const statusRes = await fetch("http://49.12.244.57:8000/ollama/status");
+      const statusRes = await fetch("/api/ollama/status");
       const statusData = await statusRes.json();
 
-      const nodesRes = await fetch("http://49.12.244.57:8000/nodes");
+      const nodesRes = await fetch("/api/nodes");
       const nodesData = await nodesRes.json();
 
       setStatus(statusData.status);
@@ -33,7 +33,7 @@ export default function Home() {
     setResponse("");
 
     try {
-      const res = await fetch("http://49.12.244.57:8000/chat", {
+      const res = await fetch("/api/chat", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -60,6 +60,32 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-black text-white p-10">
       <h1 className="text-4xl font-bold mb-8">ModelDock</h1>
+
+      <section className="bg-zinc-950 border border-zinc-800 p-6 rounded-xl mb-10">
+        <h2 className="text-2xl mb-4">Add Computer</h2>
+
+        <p className="text-zinc-400 mb-4">
+          Install ModelDock Agent on another comuter or GPU server.
+        </p>
+        
+        <div className="relative">
+          <button
+
+            onClick={() => {
+		alert("Copy this command:\n\ncurl -sSL https://raw.githubusercontent.com/kgil0/modeldock/main/scripts/install-agent.sh | bash");
+              
+            }}
+            className="absolute top-3 right-3 bg-zinc-800 hover:bg-zinc-700 px-3 py-1 rounded text-sm"
+          >
+            Copy
+          </button>
+
+          <code className="block bg-zinc-900 p-4 rounded text-sm overflow-x-auto">
+            curl -sSL https://raw.githubusercontent.com/kgil0/modeldock/main/scripts/install-agent.sh | bash
+          </code>
+        </div>
+        
+      </section>
 
       <div className="grid gap-6 md:grid-cols-2 mb-10">
         <section className="bg-zinc-950 border border-zinc-800 p-6 rounded-xl">
