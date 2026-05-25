@@ -1,25 +1,34 @@
 import time
 import requests
 import subprocess
+import psutil
 
 MODELD0CK_API = "http://127.0.0.1:8000"
 
 NODE_ID = "local-node"
 NODE_NAME = "Local VPS"
 
+boot_time = time.time()
+
 def get_models():
     try:
         response = requests.get("http://127.0.0.1:11434/api/tags", timeout=5)
         response.raise_for_status()
         data = response.json()
+
         return [model["name"] for model in data.get("models", [])]
+
     except Exception:
         return []
 
 def get_gpu_info():
     try:
         result = subprocess.run(
-            ["nvidia-smi", "--query-gpu=name,memory.used,memory.total,temperature.gpu,utilization.gpu", "--format=csv,noheader"],
+            [
+                "nvidia-smi",
+                "--query-gpu=name,memory.used,memory.total,temperature.gpu,utilization.gpu",
+                "--format=csv,noheader"
+            ],
             capture_output=True,
             text=True,
             timeout=5,
@@ -29,16 +38,32 @@ def get_gpu_info():
             return result.stdout.strip()
 
         return "CPU Mode"
+
     except Exception:
         return "CPU Mode"
 
+def get_metrics():
+    return {
+        "cpu_percent": psutil.cpu_percent(interval=1),
+        "ram_percent": psutil.virtual_memory().percent,
+        "disk_percent": psutil.disk_usage("/").percent,
+        "uptime_seconds": time.time() - boot_time,
+    }
+
 def register_node():
+    metrics = get_metrics()
+
     payload = {
         "id": NODE_ID,
         "name": NODE_NAME,
         "status": "online",
+	"endpoint": "http://127.0.0.1:11434",
         "gpu": get_gpu_info(),
         "models": get_models(),
+        "cpu_percent": metrics["cpu_percent"],
+        "ram_percent": metrics["ram_percent"],
+        "disk_percent": metrics["disk_percent"],
+        "uptime_seconds": metrics["uptime_seconds"],
     }
 
     try:
@@ -47,7 +72,9 @@ def register_node():
             json=payload,
             timeout=5,
         )
+
         print("Registered:", response.json())
+
     except Exception as e:
         print("Register failed:", e)
 

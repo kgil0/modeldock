@@ -18,6 +18,7 @@ OLLAMA_URL = "http://127.0.0.1:11434"
 nodes = []
 
 class ChatRequest(BaseModel):
+	node_id: str
 	model: str
 	prompt: str
 
@@ -26,7 +27,12 @@ class NodeRequest(BaseModel):
 	name: str
 	status: str
 	gpu: str
+	endpoint: str
 	models: list[str]
+	cpu_percent: float
+	ram_percent: float
+	disk_percent: float
+	uptime_seconds: float
 
 @app.get("/health")
 def health():
@@ -49,6 +55,17 @@ def ollama_status():
 @app.post("/chat")
 def chat(request: ChatRequest):
 	try:
+		target_node = next(
+			(n for n in nodes if n["id"] ==request.node_id),
+			None
+		)
+
+		if not target_node:
+			return {
+				"status": "error",
+				"message": "Node not found"
+			}
+
 		payload = {
 			"model": request.model,
 			"prompt": request.prompt,
@@ -56,7 +73,7 @@ def chat(request: ChatRequest):
 		}
 
 		response = requests.post(
-			f"{OLLAMA_URL}/api/generate",
+			f"{target_node['endpoint']}/api/generate",
 			json=payload,
 			timeout=120
 		)
@@ -65,6 +82,7 @@ def chat(request: ChatRequest):
 		data = response.json()
 
 		return {
+			"node": request.node_id,
 			"model": request.model,
 			"response": data.get("response","")
 		}
