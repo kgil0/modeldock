@@ -8,7 +8,11 @@ export default function Home() {
   const [nodes, setNodes] = useState<any[]>([]);
   const [prompt, setPrompt] = useState("");
   const [response, setResponse] = useState("");
+  const [streamingMessage, setStreamingMessage] = useState("");
   const [loading, setLoading] = useState(false);
+  const [pullModelName, setPullModelName] = useState("");
+  const [selectedModel, setSelectedModel] = useState("tinyllama:latest");
+  const [history, setHistory] = useState<any[]>([]);
 
   async function loadData() {
     try {
@@ -18,6 +22,10 @@ export default function Home() {
       const nodesRes = await fetch("/api/nodes");
       const nodesData = await nodesRes.json();
 
+      const historyRes = await fetch("/api/history");
+      const historyData = await historyRes.json();
+
+      setHistory(historyData);
       setStatus(statusData.status);
       setModels(statusData.models || []);
       setNodes(nodesData || []);
@@ -33,28 +41,60 @@ export default function Home() {
     setResponse("");
 
     try {
-      const res = await fetch("/api/chat", {
+      setStreamingMessage("");
+
+      const res = await fetch("/api/chat/stream", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "tinyllama:latest",
+          node_id: "local-node",
+          model: selectedModel,
           prompt: prompt,
         }),
       });
 
-      const data = await res.json();
-      setResponse(data.response);
+      const reader = res.body?.getReader();
+
+      if (!reader) {
+        setResponse("No response stream.");
+        return;
+      }
+
+      const decoder = new TextDecoder();
+      let fullText = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+
+        if (done) break;
+
+        const chunk = decoder.decode(value);
+        fullText += chunk;
+
+        setStreamingMessage(fullText);
+      }
+
+      setResponse(fullText);
+      setStreamingMessage("");
+
     } catch {
       setResponse("Error talking to model.");
     }
+
 
     setLoading(false);
   }
 
   useEffect(() => {
     loadData();
+
+    const interval = setInterval(() => {
+      loadData();
+    }, 5000);
+
+    return () => clearInterval(interval);
   }, []);
 
   return (
@@ -115,6 +155,45 @@ export default function Home() {
       </div>
 
       <section className="bg-zinc-950 border border-zinc-800 p-6 rounded-xl mb-10">
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-8 mb-8">
+        <h2 className="text-3xl font-bold mb-4">
+          Pull New Model
+        </h2>
+
+        <div className="flex gap-4">
+          <input
+            type="text"
+            placeholder="llama3"
+            value={pullModelName}
+            onChange={(e) => setPullModelName(e.target.value)}
+            className="flex-1 bg-zinc-800 border border-zinc-700 rounded-lg p-4 text-white"
+          />
+
+          <button
+            onClick={async () => {
+              if (!pullModelName) return;
+
+              await fetch("/api/pull-model", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  model: pullModelName,
+                }),
+              }),
+
+              alert("Model pull started");
+
+              setTimeout(loadData, 5000);
+            }}
+            className="bg-green-600 hover:bg-green-700 px-6 rounded-lg"
+          >
+            Pull
+          </button>
+        </div>
+      </div>
+
         <h2 className="text-2xl mb-4">Available Nodes</h2>
 
         <div className="space-y-3">
@@ -138,6 +217,25 @@ export default function Home() {
               <p className="text-sm text-zinc-400 mt-3">
                 Models: {node.models?.join(", ")}
               </p>
+              
+              <div className="grid grid-cols-3 gap-4 mt-4 text-sm">
+                <div className="bg-zinc-800 p-3 rounded">
+                  CPU : {node.cpu_percent}%
+                </div>
+
+                <div className="bg-zinc-800 p-3 rounded">
+                  RAM: {node.ram_percent}%
+                </div>
+
+                <div className="bg-zinc-800 p-3 rounded">
+                  Disk: {node.disk_percent}%
+                </div>
+              </div>
+             
+              <p className="text-sm text-zinc-500 mt-3">
+                Endpoint: {node.endpoint}
+              </p> 
+
             </div>
           ))}
         </div>
@@ -145,6 +243,20 @@ export default function Home() {
 
       <section className="bg-zinc-950 border border-zinc-800 p-6 rounded-xl">
         <h2 className="text-2xl mb-4">Chat</h2>
+
+        <select
+
+          value={selectedModel}
+          onChange={(e) => setSelectedModel(e.target.value)}
+          className="w-full bg-zinc-900 p-4 rounded text-white mb-4"
+        >
+
+          {models.map((model: any) => (
+            <option key={model.name} value={model.name}>
+              {model.name}
+            </option>
+          ))}
+        </select>
 
         <textarea
           className="w-full bg-zinc-900 p-4 rounded text-white mb-4"

@@ -5,6 +5,7 @@ from pydantic import BaseModel
 import requests
 import sqlite3
 import json
+from datetime import datetime
 
 app = FastAPI()
 
@@ -114,6 +115,7 @@ def ollama_status():
         }
 
 
+
 @app.post("/chat")
 def chat(request: ChatRequest):
     try:
@@ -141,10 +143,31 @@ def chat(request: ChatRequest):
         response.raise_for_status()
         data = response.json()
 
+        response_text = data.get("response", "")
+
+        history = []
+
+        try:
+            with open("history.json", "r") as f:
+                history = json.load(f)
+
+        except:
+            history = []
+
+        history.append({
+            "timestamp": datetime.utcnow().isoformat(),
+            "model": request.model,
+            "prompt": request.prompt,
+            "response": response_text
+        })
+
+        with open("history.json", "w") as f:
+            json.dump(history, f, indent=2)
+
         return {
             "node": request.node_id,
             "model": request.model,
-            "response": data.get("response", "")
+            "response": response_text
         }
 
     except Exception as e:
@@ -189,14 +212,16 @@ def get_nodes():
     return get_all_nodes()
 
 @app.post("/chat/stream")
-def chat_stream(request: ChatRequest):
+def chat_stream (request: ChatRequest):
 
     def generate():
+        full_text = ""
+
         try:
             nodes = get_all_nodes()
 
             target_node = next(
-                (n for n in nodes if n["id"] == request.node_id),
+                (n for n in nodes if n["id"] ==request.node_id),
                 None
             )
 
@@ -215,6 +240,7 @@ def chat_stream(request: ChatRequest):
                 json=payload,
                 stream=True,
                 timeout=120
+
             ) as response:
 
                 response.raise_for_status()
@@ -222,11 +248,29 @@ def chat_stream(request: ChatRequest):
                 for line in response.iter_lines():
                     if line:
                         data = json.loads(line.decode("utf-8"))
-
                         token = data.get("response", "")
 
                         if token:
+                            full_text += token
                             yield token
+            history = []
+
+            try:
+                with open("history.json", "r") as f:
+                    history = json.load(f)
+            except:
+                history = []
+
+            history.append({
+                "timestamp": datetime.utcnow().isoformat(),
+                "model": request.model,
+                "prompt": request.prompt,
+                "response": full_text
+
+            })
+
+            with open("history.json", "w") as f:
+                json.dump(history, f, indent=2)
 
         except Exception as e:
             yield f"Error: {str(e)}"
@@ -235,3 +279,31 @@ def chat_stream(request: ChatRequest):
         generate(),
         media_type="text/plain"
     )
+
+
+@app.post("/pull-model")
+def pull_model(data: dict):
+    model = data.get("model")
+
+    if not model:
+        return {"error": "No model provided"}
+
+    requests.post(
+        f"{OLLAMA_URL}/api/pull",
+        json={"name": model},
+        timeout=36000,
+    )
+
+    return {"status": "pull started", "model": model}
+
+@app.get("/history")
+def get_history():
+
+    try:
+        with open ("history.json", "r") as f:
+            history = json.load(f)
+
+        return history[::-1]
+
+    except:
+        return []
