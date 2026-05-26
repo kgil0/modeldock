@@ -1,0 +1,19 @@
+services:
+  backend:
+    build: ./backend
+    container_name: modeldock-backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend/modeldock.db:/app/modeldock.db
+      - ./backend/history.json:/app/history.json
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    container_name: modeldock-frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    restart: unless-stopped
