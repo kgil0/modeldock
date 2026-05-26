@@ -275,10 +275,52 @@ export default function Home() {
         </button>
 
         {response && (
+          <>
           <div className="bg-zinc-900 p-4 rounded whitespace-pre-wrap mt-4">
             {response}
           </div>
-        )}
+
+          <div className="mt-10">
+            <h3 className="text-xl font-bold mb-4">
+              Chat History
+            </h3>
+
+            <div className="space-y-4">
+              {history.map((item: any, index: number) => (
+                <div
+                  key={index}
+                  className="bg-zinc-900 border border-zinc-800 p-4 rounded-xl"
+                >
+
+                  <p className="text-xs text-zinc-500 mb-2">
+                    {item.timestamp}
+                  </p>
+
+                  <p className="text-sm text-blue-400 mb-2">
+                    Model: {item.model}
+                  </p>
+
+                  <p className="font-bold mb-2">
+                    Prompt:
+                  </p>
+
+                  <p className="mb-4 whitespace-pre-wrap">
+                    {item.prompt}
+                  </p>
+
+                  <p className="font-bold mb-2">
+                    Response:
+                  </p>
+
+                  <p className="whitespace-pre-wrap text-zinc-300">
+                    {item.response}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div> 
+        </>  
+      )}
       </section>
     </main>
   );

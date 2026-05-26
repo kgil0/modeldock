@@ -3,3 +3,9 @@ __pycache__/
 *.pyc
 .env
 backend/modeldock.db
+# Local runtime files
+backend/modeldock.db
+backend/history.json
+backend/*.bak
+backend/*.bak-stream
+README.md.save
