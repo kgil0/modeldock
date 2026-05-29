@@ -35,12 +35,35 @@ def get_gpu_info():
         )
 
         if result.returncode == 0 and result.stdout.strip():
-            return result.stdout.strip()
+            parts = [p.strip() for p in result.stdout.strip().split(",")]
 
-        return "CPU Mode"
+            return {
+                "gpu": parts[0],
+                "gpu_name": parts[0],
+                "gpu_memory_used": float(parts[1]),
+                "gpu_memory_total": float(parts[2]),
+                "gpu_temp": float(parts[3]),
+                "gpu_util": float(parts[4]),
+            }
+
+        return {
+            "gpu": "CPU Mode",
+            "gpu_name": None,
+            "gpu_memory_used": None,
+            "gpu_memory_total": None,
+            "gpu_temp": None,
+            "gpu_util": None,
+       }
 
     except Exception:
-        return "CPU Mode"
+        return {
+            "gpu": "CPU Mode",
+            "gpu_name": None,
+            "gpu_memory_used": None,
+            "gpu_memory_total": None,
+            "gpu_temp": None,
+            "gpu_util": None,
+        }
 
 def get_metrics():
     return {
@@ -52,13 +75,19 @@ def get_metrics():
 
 def register_node():
     metrics = get_metrics()
+    gpu_info = get_gpu_info()
 
     payload = {
         "id": NODE_ID,
         "name": NODE_NAME,
         "status": "online",
 	"endpoint": "http://127.0.0.1:11434",
-        "gpu": get_gpu_info(),
+        "gpu": gpu_info["gpu"],
+        "gpu_name": gpu_info["gpu_name"],
+        "gpu_memory_used": gpu_info["gpu_memory_used"],
+        "gpu_memory_total": gpu_info["gpu_memory_total"],
+        "gpu_temp": gpu_info["gpu_temp"],
+        "gpu_util": gpu_info["gpu_util"],
         "models": get_models(),
         "cpu_percent": metrics["cpu_percent"],
         "ram_percent": metrics["ram_percent"],

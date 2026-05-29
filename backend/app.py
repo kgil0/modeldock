@@ -32,6 +32,11 @@ class NodeRequest(BaseModel):
     name: str
     status: str
     gpu: str
+    gpu_name: str | None = None
+    gpu_memory_used: float | None = None
+    gpu_memory_total: float | None = None
+    gpu_temp: float | None = None
+    gpu_util: float | None = None
     endpoint: str
     models: list[str]
     cpu_percent: float
@@ -59,6 +64,19 @@ def init_db():
         )
     """)
 
+    for column in [
+        "gpu_name TEXT",
+        "gpu_memory_used REAL",
+        "gpu_memory_total REAL",
+        "gpu_temp REAL",
+        "gpu_util REAL",
+    ]:
+
+        try:
+            cursor.execute(f"ALTER TABLE nodes ADD COLUMN {column}")
+        except sqlite3.OperationalError:
+            pass
+
     conn.commit()
     conn.close()
 
@@ -78,6 +96,11 @@ def get_all_nodes():
             "name": row[1],
             "status": row[2],
             "gpu": row[3],
+            "gpu_name": row[10],
+            "gpu_memory_used": row[11],
+            "gpu_memory_total": row[12],
+            "gpu_temp": row[13],
+            "gpu_util": row[14],
             "endpoint": row[4],
             "models": json.loads(row[5]),
             "cpu_percent": row[6],
@@ -185,9 +208,10 @@ def register_node(node: NodeRequest):
     cursor.execute("""
         INSERT OR REPLACE INTO nodes (
             id, name, status, gpu, endpoint, models,
-            cpu_percent, ram_percent, disk_percent, uptime_seconds
+            cpu_percent, ram_percent, disk_percent, uptime_seconds,
+            gpu_name, gpu_memory_used, gpu_memory_total, gpu_temp, gpu_util
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, (
         node.id,
         node.name,
@@ -199,6 +223,11 @@ def register_node(node: NodeRequest):
         node.ram_percent,
         node.disk_percent,
         node.uptime_seconds,
+        node.gpu_name,
+        node.gpu_memory_used,
+        node.gpu_memory_total,
+        node.gpu_temp,
+        node.gpu_util,
     ))
 
     conn.commit()
