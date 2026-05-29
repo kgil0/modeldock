@@ -12,6 +12,7 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [pullModelName, setPullModelName] = useState("");
   const [selectedModel, setSelectedModel] = useState("tinyllama:latest");
+  const [selectedNode, setSelectedNode] = useState("local-node");
   const [history, setHistory] = useState<any[]>([]);
 
   async function loadData() {
@@ -49,7 +50,7 @@ export default function Home() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          node_id: "local-node",
+          node_id: selectedNode,
           model: selectedModel,
           prompt: prompt,
         }),
@@ -218,10 +219,11 @@ export default function Home() {
                 Models: {node.models?.join(", ")}
               </p>
               
-              <div className="grid grid-cols-3 gap-4 mt-4 text-sm">
+              <div className="grid grid-cols-4 gap-4 mt-4 text-sm">
                 <div className="bg-zinc-800 p-3 rounded">
                   CPU : {node.cpu_percent}%
                 </div>
+     
 
                 <div className="bg-zinc-800 p-3 rounded">
                   RAM: {node.ram_percent}%
@@ -230,7 +232,26 @@ export default function Home() {
                 <div className="bg-zinc-800 p-3 rounded">
                   Disk: {node.disk_percent}%
                 </div>
+
+                <div className="bg-zinc-800 p-3 rounded">
+                  GPU: {node.gpu_name || node.gpu}
+                </div>
               </div>
+
+              <div className="grid grid-cols-2 gap-4 mt-4 text-sm">
+                <div className="bg-zinc-800 p-3 rounded">
+                  VRAM: {node.gpu_memory_used ?? "-"} / {node.gpu_memory_total ?? "-"} MB
+                </div>
+
+                <div className="bg-zinc-800 p-3 rounded">
+                  Temp: {node.gpu_temp ?? "-"}°C
+                </div>
+
+                <div className="bg-zinc-800 p-3 rounded">
+                  Util: {node.gpu_util ?? "-"}%
+                </div>
+              </div>
+                  
              
               <p className="text-sm text-zinc-500 mt-3">
                 Endpoint: {node.endpoint}
@@ -243,6 +264,18 @@ export default function Home() {
 
       <section className="bg-zinc-950 border border-zinc-800 p-6 rounded-xl">
         <h2 className="text-2xl mb-4">Chat</h2>
+
+        <select
+          value={selectedNode}
+          onChange={(e) => setSelectedNode(e.target.value)}
+          className="w-full bg-zinc-900 p-4 rounded text-white mb-4"
+        >
+          {nodes.map((node: any) => (
+            <option key={node.id} value={node.id}>
+              {node.name}
+            </option>
+          ))}
+        </select>
 
         <select
 
