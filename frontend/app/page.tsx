@@ -13,6 +13,7 @@ export default function Home() {
   const [pullModelName, setPullModelName] = useState("");
   const [selectedModel, setSelectedModel] = useState("tinyllama:latest");
   const [selectedNode, setSelectedNode] = useState("local-node");
+  const [detailNode, setDetailsNode] = useState<any | null>(null);
   const [history, setHistory] = useState<any[]>([]);
 
   async function loadData() {
@@ -101,6 +102,58 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-black text-white p-10">
       <h1 className="text-4xl font-bold mb-8">ModelDock</h1>
+      
+      {detailNode && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
+
+          <div className="bg-zinc-900 border border-zinc-700 rounded-xl p-6 w-[600px]">
+
+            <h2 className="text-2xl font-bold mb-4">
+              {detailNode.name}
+            </h2>
+
+            <p>GPU: {detailNode.gpu_name || detailNode.gpu}</p>
+            <p>CPU: {detailNode.cpu_percent}%</p>
+            <p>RAM: {detailNode.ram_percent}%</p>
+            <p>Disk: {detailNode.disk_percent}%</p>
+            <p>Endpoint: {detailNode.endpoint}</p>
+            <p>Last Seen: {detailNode.last_seen}</p>
+
+            <p>
+              Uptime: {Math.floor(detailNode.uptime_seconds / 3600)}h {Math.floor((detailNode.uptime_seconds % 3600) / 60)}m
+            </p>
+
+            <button
+              onClick={() => setDetailsNode(null)}
+              className="mt-4 bg-red-600 px-4 py-2 rounded"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div className="grid grid-cols-4 gap-4 mb-8">
+        <div className="bg-zinc-900 p-4 rounded">
+          Nodes: {nodes.length}
+        </div>
+
+        <div className="bg-zinc-900 p-4 rounded">
+          Online: {nodes.filter((n:any) => n.status === "online").length}
+        </div>
+
+        <div className="bg-zinc-900 p-4 rounded">
+          Models: {models.length}
+        </div>
+
+        <div className="bg-zinc-900 p-4 rounded">
+          Models: {models.length}
+        </div>
+
+        <div className="bg-zinc-900 p-4 rounded">
+          GPUs: {nodes.filter((n:any) => n.gpu !== "CPU Mode").length}
+        </div>
+      </div>
 
       <section className="bg-zinc-950 border border-zinc-800 p-6 rounded-xl mb-10">
         <h2 className="text-2xl mb-4">Add Computer</h2>
@@ -144,13 +197,41 @@ export default function Home() {
           <h2 className="text-2xl mb-3">Installed Models</h2>
           <div className="space-y-2">
             {models.map((model: any) => (
-              <div key={model.name} className="bg-zinc-900 p-4 rounded">
-                <p className="font-bold">{model.name}</p>
-                <p className="text-sm text-zinc-400">
-                  {model.details?.parameter_size}
-                </p>
-              </div>
-            ))}
+              <div 
+                key={model.name}
+                className="bg-zinc-900 p-4 rounded flex justify-between items-center"
+              >
+
+                <div>
+                  <p className="font-bold">{model.name}</p>
+                  <p className="text-sm text-zinc-400">
+                    {model.details?.parameter_size}
+                  </p>
+                </div>
+
+                <button
+                  onClick={async () => {
+                    if (!confirm(`Delete ${model.name}?`)) return;
+
+                    await fetch("/api/delete-model", {
+                     method: "POST",
+                     headers: {
+                       "Content-Type": "application/json",
+                     },
+                     body: JSON.stringify({
+                       model: model.name,
+                     }),
+                   });
+
+                   loadData();
+                 }}
+                 className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded"
+               >
+                 Delete
+               </button>
+             </div>
+           ))}
+
           </div>
         </section>
       </div>
@@ -199,7 +280,11 @@ export default function Home() {
 
         <div className="space-y-3">
           {nodes.map((node: any) => (
-            <div key={node.id} className="bg-zinc-900 p-4 rounded">
+            <div
+              key={node.id}
+              onClick={() => setDetailsNode(node)}
+              className="bg-zinc-900 p-4 rounded cursor-pointer hover:bg-zinc-800"
+            >
               <div className="flex items-center justify-between">
                 <div>
                   <p className="font-bold">{node.name}</p>
@@ -208,7 +293,11 @@ export default function Home() {
 
                 <span
                   className={`px-3 py-1 rounded text-sm ${
-                    node.status === "online" ? "bg-green-600" : "bg-red-600"
+                    node.status === "online" 
+                      ? "bg-green-600"
+                      : node.status === "stale"
+                      ? "bg-yellow-600"
+                      : "bg-red-600"
                   }`}
                 >
                   {node.status}
@@ -308,10 +397,11 @@ export default function Home() {
         </button>
 
         {response && (
-          <>
+          
           <div className="bg-zinc-900 p-4 rounded whitespace-pre-wrap mt-4">
             {response}
           </div>
+        )}
 
           <div className="mt-10">
             <h3 className="text-xl font-bold mb-4">
@@ -351,9 +441,7 @@ export default function Home() {
                 </div>
               ))}
             </div>
-          </div> 
-        </>  
-      )}
+          </div>  
       </section>
     </main>
   );

@@ -70,6 +70,7 @@ def init_db():
         "gpu_memory_total REAL",
         "gpu_temp REAL",
         "gpu_util REAL",
+        "last_seen TEXT",
     ]:
 
         try:
@@ -90,11 +91,32 @@ def get_all_nodes():
     conn.close()
 
     nodes = []
+
+    now = datetime.utcnow()
+
     for row in rows:
+
+        last_seen = row[15]
+
+        node_status = "offline"
+
+        if last_seen:
+            try:
+                last_seen_dt = datetime.fromisoformat(last_seen)
+                seconds_since_seen = (now - last_seen_dt).total_seconds()
+
+                if seconds_since_seen <= 30:
+                    node_status = "online"
+
+                elif seconds_since_seen <= 60:
+                      node_status = "stale"
+            except:
+                node_status = "offline"
+
         nodes.append({
             "id": row[0],
             "name": row[1],
-            "status": row[2],
+            "status": node_status,
             "gpu": row[3],
             "gpu_name": row[10],
             "gpu_memory_used": row[11],
@@ -107,6 +129,7 @@ def get_all_nodes():
             "ram_percent": row[7],
             "disk_percent": row[8],
             "uptime_seconds": row[9],
+            "last_seen": row[15],
         })
 
     return nodes
@@ -209,9 +232,9 @@ def register_node(node: NodeRequest):
         INSERT OR REPLACE INTO nodes (
             id, name, status, gpu, endpoint, models,
             cpu_percent, ram_percent, disk_percent, uptime_seconds,
-            gpu_name, gpu_memory_used, gpu_memory_total, gpu_temp, gpu_util
+            gpu_name, gpu_memory_used, gpu_memory_total, gpu_temp, gpu_util, last_seen
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, (
         node.id,
         node.name,
@@ -228,6 +251,7 @@ def register_node(node: NodeRequest):
         node.gpu_memory_total,
         node.gpu_temp,
         node.gpu_util,
+        datetime.utcnow().isoformat(),
     ))
 
     conn.commit()
@@ -324,6 +348,23 @@ def pull_model(data: dict):
     )
 
     return {"status": "pull started", "model": model}
+
+@app.post("/delete-model")
+def delete_model(data: dict):
+    model = data.get("model")
+
+    if not model:
+        return {"error": "No model provided"}
+
+    response = requests.delete(
+        f"{OLLAMA_URL}/api/delete",
+        json={"name": model},
+        timeout=120,
+    )
+
+    response.raise_for_status()
+
+    return {"status": "deleted", "model": model}
 
 @app.get("/history")
 def get_history():
