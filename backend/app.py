@@ -95,11 +95,14 @@ def init_db():
     conn.close()
 
 
-def get_all_nodes():
+def get_all_nodes(user_id: str | None = None):
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
+    if user_id:
+        cursor.execute("SELECT * FROM nodes WHERE user_id = ?", (user_id,))
+    else:
+        cursor.execute("SELECT * FROM nodes")
 
-    cursor.execute("SELECT * FROM nodes")
     rows = cursor.fetchall()
     conn.close()
 
@@ -249,9 +252,9 @@ def register_node(node: NodeRequest, x_agent_key: str | None = Header(default=No
         INSERT OR REPLACE INTO nodes (
             id, name, status, gpu, endpoint, models,
             cpu_percent, ram_percent, disk_percent, uptime_seconds,
-            gpu_name, gpu_memory_used, gpu_memory_total, gpu_temp, gpu_util, last_seen
+            gpu_name, gpu_memory_used, gpu_memory_total, gpu_temp, gpu_util, last_seen, user_id
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, (
         node.id,
         node.name,
@@ -269,6 +272,7 @@ def register_node(node: NodeRequest, x_agent_key: str | None = Header(default=No
         node.gpu_temp,
         node.gpu_util,
         datetime.utcnow().isoformat(),
+        "admin",
     ))
 
     conn.commit()
@@ -278,8 +282,8 @@ def register_node(node: NodeRequest, x_agent_key: str | None = Header(default=No
 
 
 @app.get("/nodes")
-def get_nodes():
-    return get_all_nodes()
+def get_nodes(user_id: str | None = None):
+    return get_all_nodes(user_id)
 
 @app.post("/chat/stream")
 def chat_stream (request: ChatRequest):
