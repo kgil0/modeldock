@@ -15,6 +15,9 @@ export default function Home() {
   const [selectedNode, setSelectedNode] = useState("local-node");
   const [detailNode, setDetailsNode] = useState<any | null>(null);
   const [history, setHistory] = useState<any[]>([]);
+  const [loggedIn, setLoggedIn] = useState(false);
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
 
   async function loadData() {
     try {
@@ -98,6 +101,56 @@ export default function Home() {
 
     return () => clearInterval(interval);
   }, []);
+
+if (!loggedIn) {
+  return (
+    <main className="min-h-screen bg-black text-white flex items-center justify-center">
+      <div className="bg-zinc-950 border border-zinc-800 p-8 rounded-xl w-[400px]">
+        <h1 className="text-4xl font-bold mb-6">ModelDock</h1>
+
+        <input
+          type="email"
+          placeholder="Email"
+          value={loginEmail}
+          onChange={(e) => setLoginEmail(e.target.value)}
+          className="w-full bg-zinc-900 p-3 rounded mb-3"
+        />
+
+        <input
+          type="password"
+          placeholder="Password"
+          value={loginPassword}
+          onChange={(e) => setLoginPassword(e.target.value)}
+          className="w-full bg-zinc-900 p-3 rounded mb-4"
+        />
+
+        <button
+          onClick={async () => {
+            const res = await fetch("/api/login", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                email: loginEmail,
+                password: loginPassword,
+              }),
+            });
+         
+            const data = await res.json();
+
+            if (data.status ==="ok") {
+              setLoggedIn(true);
+            }
+          }}
+          className="w-full bg-blue-600 p-3 rounded"
+        >
+          Login
+        </button>
+      </div>
+    </main>
+  );
+}  
 
   return (
     <main className="min-h-screen bg-black text-white p-10">
