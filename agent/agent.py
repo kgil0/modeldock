@@ -99,6 +99,7 @@ def register_node():
         response = requests.post(
             f"{MODELD0CK_API}/register-node",
             json=payload,
+            headers={"X-Agent-Key": "b3cc1786c75522a69d945625954d2a94"},
             timeout=5,
         )
 

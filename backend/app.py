@@ -1,5 +1,5 @@
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi import FastAPI
+from fastapi import FastAPI, Header, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 import requests
@@ -19,13 +19,13 @@ app.add_middleware(
 
 OLLAMA_URL = "http://127.0.0.1:11434"
 DB_PATH = "modeldock.db"
+AGENT_KEY ="b3cc1786c75522a69d945625954d2a94"
 
 
 class ChatRequest(BaseModel):
     node_id: str
     model: str
     prompt: str
-
 
 class NodeRequest(BaseModel):
     id: str
@@ -44,6 +44,10 @@ class NodeRequest(BaseModel):
     disk_percent: float
     uptime_seconds: float
 
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
 
 def init_db():
     conn = sqlite3.connect(DB_PATH)
@@ -61,6 +65,15 @@ def init_db():
             ram_percent REAL,
             disk_percent REAL,
             uptime_seconds REAL
+        )
+    """)
+
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            id TEXT PRIMARY KEY,
+            email TEXT UNIQUE,
+            password TEXT,
+            created_at TEXT
         )
     """)
 
@@ -224,7 +237,11 @@ def chat(request: ChatRequest):
 
 
 @app.post("/register-node")
-def register_node(node: NodeRequest):
+def register_node(node: NodeRequest, x_agent_key: str | None = Header(default=None)):
+
+    if x_agent_key != AGENT_KEY:
+        raise HTTPException(status_code=401, detail="Invalid agent key")
+
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
 
@@ -377,3 +394,30 @@ def get_history():
 
     except:
         return []
+
+@app.post("/login")
+def login(request: LoginRequest):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+
+    cursor.execute(
+        "SELECT id, email FROM users WHERE email = ? AND password = ?",
+        (request.email, request.password)
+    )
+
+    user = cursor.fetchone()
+    conn.close()
+
+    if not user:
+        return {
+            "status": "error",
+            "message": "Invalid login"
+        }
+
+    return {
+        "status": "ok",
+        "user": {
+            "id": user[0],
+            "email": user[1]
+        }
+    }

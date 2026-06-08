@@ -5,7 +5,7 @@ set -e
 echo "Installing ModelDock Agent..."
 
 MODELD0CK_DIR="$HOME/modeldock-agent"
-MODELD0CK_API="http://49.12.244.57:8000"
+MODELDOCK_API="https://modeldock.duckdns.org/api"
 
 mkdir -p "$MODELD0CK_DIR"
 
@@ -27,7 +27,7 @@ import subprocess
 import psutil
 import socket
 
-MODELD0CK_API = "$MODELD0CK_API"
+MODELDOCK_API = "$MODELDOCK_API"
 
 NODE_ID = socket.gethostname()
 NODE_NAME = socket.gethostname()
@@ -73,7 +73,12 @@ def register_node():
     }
 
     try:
-        response = requests.post(f"{MODELD0CK_API}/register-node", json=payload, timeout=5)
+        response = requests.post(
+            f"{MODELDOCK_API}/register-node",
+            json=payload,
+            headers={"X-Agent-Key": "b3cc1786c75522a69d945625954d2a94"},
+            timeout=5,
+        )
         print("Registered:", response.json())
     except Exception as e:
         print("Register failed:", e)
