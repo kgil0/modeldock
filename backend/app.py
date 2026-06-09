@@ -43,6 +43,7 @@ class NodeRequest(BaseModel):
     ram_percent: float
     disk_percent: float
     uptime_seconds: float
+    claim_code: str | None = None
 
 class LoginRequest(BaseModel):
     email: str
@@ -245,8 +246,21 @@ def register_node(node: NodeRequest, x_agent_key: str | None = Header(default=No
     if x_agent_key != AGENT_KEY:
         raise HTTPException(status_code=401, detail="Invalid agent key")
 
-    conn = sqlite3.connect(DB_PATH)
+    conn=sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
+
+    user_id = "admin"
+
+    if node.claim_code:
+        cursor.execute(
+            "SELECT user_id FROM claim_codes WHERE code = ?",
+            (node.claim_code,)
+        )
+
+        result = cursor.fetchone()
+
+        if result:
+            user_id = result[0]
 
     cursor.execute("""
         INSERT OR REPLACE INTO nodes (
@@ -272,7 +286,7 @@ def register_node(node: NodeRequest, x_agent_key: str | None = Header(default=No
         node.gpu_temp,
         node.gpu_util,
         datetime.utcnow().isoformat(),
-        "admin",
+        user_id,
     ))
 
     conn.commit()

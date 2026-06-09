@@ -9,6 +9,8 @@ MODELDOCK_API="https://modeldock.duckdns.org/api"
 
 mkdir -p "$MODELD0CK_DIR"
 
+read -p "Enter Claim Code: " CLAIM_CODE
+
 echo "Installing dependencies..."
 sudo apt update
 sudo apt install -y python3 python3-venv curl
@@ -32,6 +34,7 @@ MODELDOCK_API = "$MODELDOCK_API"
 NODE_ID = socket.gethostname()
 NODE_NAME = socket.gethostname()
 NODE_ENDPOINT = "http://127.0.0.1:11434"
+CLAIM_CODE = "$CLAIM_CODE"
 
 boot_time = time.time()
 
@@ -63,6 +66,7 @@ def register_node():
         "id": NODE_ID,
         "name": NODE_NAME,
         "status": "online",
+        "claim_code": CLAIM_CODE,
         "gpu": get_gpu_info(),
         "endpoint": NODE_ENDPOINT,
         "models": get_models(),
