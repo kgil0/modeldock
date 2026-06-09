@@ -8,6 +8,7 @@ import json
 from datetime import datetime
 import secrets
 import string
+from passlib.context import CryptContext
 
 app = FastAPI()
 
@@ -23,6 +24,7 @@ OLLAMA_URL = "http://127.0.0.1:11434"
 DB_PATH = "modeldock.db"
 AGENT_KEY ="b3cc1786c75522a69d945625954d2a94"
 
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 class ChatRequest(BaseModel):
     node_id: str
@@ -423,14 +425,15 @@ def login(request: LoginRequest):
     cursor = conn.cursor()
 
     cursor.execute(
-        "SELECT id, email FROM users WHERE email = ? AND password = ?",
-        (request.email, request.password)
+        "SELECT id, email, password FROM users WHERE email = ?",
+        (request.email,)
     )
 
     user = cursor.fetchone()
     conn.close()
 
-    if not user:
+    if not user or not pwd_context.verify(request.password, user[2]):
+
         return {
             "status": "error",
             "message": "Invalid login"
