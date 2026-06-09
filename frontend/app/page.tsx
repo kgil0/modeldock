@@ -18,13 +18,23 @@ export default function Home() {
   const [loggedIn, setLoggedIn] = useState(false);
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
+  const [claimCode, setClaimCode] = useState("");
+  const [claimLoading, setClaimLoading] = useState(false);  
+  
+  useEffect(() => {
+    const savedLogin = localStorage.getItem("modeldock_logged_in");
+
+    if (savedLogin === "true") {
+      setLoggedIn(true);
+    }
+  }, []);
 
   async function loadData() {
     try {
       const statusRes = await fetch("/api/ollama/status");
       const statusData = await statusRes.json();
 
-      const nodesRes = await fetch("/api/nodes");
+      const nodesRes = await fetch("/api/nodes?user_id=admin");
       const nodesData = await nodesRes.json();
 
       const historyRes = await fetch("/api/history");
@@ -141,6 +151,7 @@ if (!loggedIn) {
 
             if (data.status ==="ok") {
               setLoggedIn(true);
+              localStorage.setItem("modeldock_logged_in", "true");
             }
           }}
           className="w-full bg-blue-600 p-3 rounded"
@@ -154,7 +165,19 @@ if (!loggedIn) {
 
   return (
     <main className="min-h-screen bg-black text-white p-10">
-      <h1 className="text-4xl font-bold mb-8">ModelDock</h1>
+      <div className="flex items-center justify-between mb-8">
+        <h1 className="text-4xl font-bold">ModelDock</h1>
+
+        <button
+          onClick={() => {
+            localStorage.removeItem("modeldock_logged_in");
+            setLoggedIn(false);
+          }}
+          className="bg-zinc-800 hover:bg-zinc-700 px-4 py-2 rounded"
+        >
+          Logout
+        </button>
+      </div>
       
       {detailNode && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
@@ -214,7 +237,45 @@ if (!loggedIn) {
         <p className="text-zinc-400 mb-4">
           Install ModelDock Agent on another comuter or GPU server.
         </p>
-        
+
+        <div className="mb-4">
+          <button
+            onClick={async () => {
+              setClaimLoading(true);
+
+              try {
+                const res = await fetch("/api/generate-claim-code", {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                  },
+                  body: JSON.stringify({
+                    user_id: "admin",
+                  }),
+                });
+
+                const data = await res.json();
+
+                if (data.code) {
+                  setClaimCode(data.code);
+                }     
+              } finally {
+                setClaimLoading(false);
+              }
+            }}
+            className="bg-green-600 px-4 py-2 rounded"
+          >
+            {claimLoading ? "Generating..." : "Generate Claim Code"}
+          </button>
+
+          {claimCode && (
+            <div className="mt-3 bg-zinc-900 p-3 rounded">
+              <strong>Claim Code:</strong> {claimCode}
+            </div>
+          )}
+        </div> 
+
+
         <div className="relative">
           <button
 

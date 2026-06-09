@@ -6,6 +6,8 @@ import requests
 import sqlite3
 import json
 from datetime import datetime
+import secrets
+import string
 
 app = FastAPI()
 
@@ -49,6 +51,8 @@ class LoginRequest(BaseModel):
     email: str
     password: str
 
+class ClaimCodeRequest(BaseModel):
+    user_id: str
 
 def init_db():
     conn = sqlite3.connect(DB_PATH)
@@ -438,4 +442,29 @@ def login(request: LoginRequest):
             "id": user[0],
             "email": user[1]
         }
+    }
+
+@app.post("/generate-claim-code")
+def generate_claim_code(request: ClaimCodeRequest):
+    alphabet = string.ascii_uppercase + string.digits
+    part1= "".join(secrets.choice(alphabet) for _ in range(4))
+    part2= "".join(secrets.choice(alphabet) for _ in range(4))
+
+    code = f"MD-{part1}-{part2}"
+
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+
+    cursor.execute(
+        "INSERT INTO claim_codes (code, user_id, created_at) VALUES (?, ?, ?)",
+        (code, request.user_id, datetime.utcnow().isoformat())
+    )
+
+    conn.commit()
+    conn.close()
+
+    return {
+        "status": "ok",
+        "code": code,
+        "user_id": request.user_id
     }
