@@ -53,6 +53,10 @@ class LoginRequest(BaseModel):
     email: str
     password: str
 
+class RegisterRequest(BaseModel):
+    email: str
+    password: str
+
 class ClaimCodeRequest(BaseModel):
     user_id: str
 
@@ -418,6 +422,57 @@ def get_history():
 
     except:
         return []
+
+@app.post("/register")
+def register(request: RegisterRequest):
+
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+
+    cursor.execute(
+        "SELECT id FROM users WHERE email = ?",
+        (request.email,)
+    )
+
+    existing_user = cursor.fetchone()
+
+    if existing_user:
+        conn.close()
+
+        return {
+            "status": "error",
+            "message": "User already exists"
+        }
+
+    password_hash = pwd_context.hash(request.password)
+
+    user_id = secrets.token_hex(8)
+
+    cursor.execute(
+        """
+
+        INSERT INTO users (
+            id,
+            email,
+            password,
+            created_at
+        )
+        VALUES (?, ?, ?, ?)
+        """,
+        (
+            user_id,
+            request.email,
+            password_hash,
+            datetime.utcnow().isoformat()
+        )
+      )
+    conn.commit()
+    conn.close()
+
+    return {
+        "status": "ok",
+        "user_id": user_id
+    }
 
 @app.post("/login")
 def login(request: LoginRequest):
