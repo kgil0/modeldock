@@ -16,6 +16,7 @@ export default function Home() {
   const [detailNode, setDetailsNode] = useState<any | null>(null);
   const [history, setHistory] = useState<any[]>([]);
   const [loggedIn, setLoggedIn] = useState(false);
+  const [userId, setUserId] = useState("");
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
   const [claimCode, setClaimCode] = useState("");
@@ -23,9 +24,11 @@ export default function Home() {
   
   useEffect(() => {
     const savedLogin = localStorage.getItem("modeldock_logged_in");
+    const savedUserId = localStorage.getItem("modeldock_user_id");
 
-    if (savedLogin === "true") {
+    if (savedLogin === "true" && savedUserId) {
       setLoggedIn(true);
+      setUserId(savedUserId);
     }
   }, []);
 
@@ -34,7 +37,7 @@ export default function Home() {
       const statusRes = await fetch("/api/ollama/status");
       const statusData = await statusRes.json();
 
-      const nodesRes = await fetch("/api/nodes?user_id=admin");
+      const nodesRes = await fetch('/api/nodes?user_id=${userId}');
       const nodesData = await nodesRes.json();
 
       const historyRes = await fetch("/api/history");
@@ -152,12 +155,41 @@ if (!loggedIn) {
             if (data.status ==="ok") {
               setLoggedIn(true);
               localStorage.setItem("modeldock_logged_in", "true");
+              localStorage.setItem("modeldock_user_id", data.user.id);
+              setUserId(data.user.id);
             }
           }}
           className="w-full bg-blue-600 p-3 rounded"
         >
           Login
         </button>
+         
+        <button
+          onClick={async () => {
+            const res = await fetch("/api/register", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                email: loginEmail,
+                password: loginPassword,
+              }),
+            });
+
+            const data = await res.json();
+
+            if (data.status === "ok") {
+              alert("Account created. You can now log in.");
+            } else {
+              alert(data.message || "Registration failed");
+            }
+          }}
+          className="w-full bg-zinc-700 hover:bg-zinc-600 p-3 rounded mt-3"
+        >
+          Register
+        </button>
+
       </div>
     </main>
   );
@@ -171,6 +203,8 @@ if (!loggedIn) {
         <button
           onClick={() => {
             localStorage.removeItem("modeldock_logged_in");
+            localStorage.removeItem("modeldock_user_id");
+            setUserId("");
             setLoggedIn(false);
           }}
           className="bg-zinc-800 hover:bg-zinc-700 px-4 py-2 rounded"
@@ -250,7 +284,7 @@ if (!loggedIn) {
                     "Content-Type": "application/json",
                   },
                   body: JSON.stringify({
-                    user_id: "admin",
+                    user_id: userId,
                   }),
                 });
 
@@ -269,8 +303,21 @@ if (!loggedIn) {
           </button>
 
           {claimCode && (
-            <div className="mt-3 bg-zinc-900 p-3 rounded">
-              <strong>Claim Code:</strong> {claimCode}
+            <div className="mt-3 bg-zinc-900 p-3 rounded flex justify-between items-center">
+              <div>
+                <strong>Claim Code:</strong> {claimCode}
+              </div>
+               
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(claimCode);
+                  alert("Claim code copied!");
+                }}
+                className="bg-zinc-700 hover:bg-zinc-600 px-3 py-1 rounded text-sm"
+              >
+
+                Copy
+              </button>
             </div>
           )}
         </div> 
