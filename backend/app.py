@@ -259,23 +259,34 @@ def register_node(node: NodeRequest, x_agent_key: str | None = Header(default=No
     conn=sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
 
-    user_id = "admin"
-
-    if node.claim_code:
-        cursor.execute(
-            "SELECT user_id FROM claim_codes WHERE code = ? AND used = 0",
-            (node.claim_code,)
+    if not node.claim_code:
+        conn.close()
+        raise HTTPException(
+            status_code=400,
+            detail="Claim code required"
         )
 
-        result = cursor.fetchone()
+    cursor.execute(
+        "SELECT user_id FROM claim_codes WHERE code = ? AND used = 0",
+        (node.claim_code,)
+    )
 
-        if result:
-            user_id = result[0]
+    result = cursor.fetchone()
 
-            cursor.execute(
-                "UPDATE claim_codes SET used = 1 WHERE code = ?",
-                (node.claim_code,)
-            )
+    if not result:
+        conn.close()
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid or used claim code"
+        )
+
+    user_id = result[0]
+
+    cursor.execute(
+        "UPDATE claim_codes SET used = 1 WHERE code = ?",
+        (node.claim_code,)
+    )
+
 
     cursor.execute("""
         INSERT OR REPLACE INTO nodes (
