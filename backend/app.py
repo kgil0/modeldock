@@ -263,7 +263,7 @@ def register_node(node: NodeRequest, x_agent_key: str | None = Header(default=No
 
     if node.claim_code:
         cursor.execute(
-            "SELECT user_id FROM claim_codes WHERE code = ?",
+            "SELECT user_id FROM claim_codes WHERE code = ? AND used = 0",
             (node.claim_code,)
         )
 
@@ -271,6 +271,11 @@ def register_node(node: NodeRequest, x_agent_key: str | None = Header(default=No
 
         if result:
             user_id = result[0]
+
+            cursor.execute(
+                "UPDATE claim_codes SET used = 1 WHERE code = ?",
+                (node.claim_code,)
+            )
 
     cursor.execute("""
         INSERT OR REPLACE INTO nodes (
