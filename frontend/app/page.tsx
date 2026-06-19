@@ -37,7 +37,7 @@ export default function Home() {
       const statusRes = await fetch("/api/ollama/status");
       const statusData = await statusRes.json();
 
-      const nodesRes = await fetch('/api/nodes?user_id=${userId}');
+      const nodesRes = await fetch(`/api/nodes?user_id=${userId}`);
       const nodesData = await nodesRes.json();
 
       const historyRes = await fetch("/api/history");
