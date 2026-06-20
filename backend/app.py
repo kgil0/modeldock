@@ -277,6 +277,20 @@ def register_node(node: NodeRequest, x_agent_key: str | None = Header(default=No
                 detail="Claim code required"
             )
 
+        cursor.execute(
+            "SELECT user_id FROM claim_codes WHERE code = ? AND used = 0",
+            (node.claim_code,)
+        )
+
+        result = cursor.fetchone()
+
+        if not result:
+            conn.close()
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid or used claim code"
+            )
+
         user_id = result[0]
 
         cursor.execute(
@@ -498,17 +512,27 @@ def login(request: LoginRequest):
     )
 
     user = cursor.fetchone()
-    conn.close()
 
     if not user or not pwd_context.verify(request.password, user[2]):
-
+        conn.close()
         return {
             "status": "error",
             "message": "Invalid login"
         }
 
+    token = secrets.token_hex(32)
+
+    cursor.execute(
+        "INSERT INTO sessions (token, user_id, created_at) VALUES (?, ?, ?)",
+        (token, user[0], datetime.utcnow().isoformat())
+    )
+
+    conn.commit()
+    conn.close()
+
     return {
         "status": "ok",
+        "token": token,
         "user": {
             "id": user[0],
             "email": user[1]
