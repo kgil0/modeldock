@@ -7,6 +7,7 @@ MODELD0CK_API = "http://127.0.0.1:8000"
 
 NODE_ID = "local-node"
 NODE_NAME = "Local VPS"
+CLAIM_CODE = None
 
 boot_time = time.time()
 
@@ -73,7 +74,9 @@ def get_metrics():
         "uptime_seconds": time.time() - boot_time,
     }
 
+
 def register_node():
+    global CLAIM_CODE
     metrics = get_metrics()
     gpu_info = get_gpu_info()
 
@@ -81,6 +84,7 @@ def register_node():
         "id": NODE_ID,
         "name": NODE_NAME,
         "status": "online",
+        "claim_code": CLAIM_CODE,
 	"endpoint": "http://127.0.0.1:11434",
         "gpu": gpu_info["gpu"],
         "gpu_name": gpu_info["gpu_name"],
@@ -103,7 +107,11 @@ def register_node():
             timeout=5,
         )
 
-        print("Registered:", response.json())
+        data = response.json()
+        print("Registered:", data)
+
+        if data.get("status") == "registered":
+            CLAIM_CODE = None
 
     except Exception as e:
         print("Register failed:", e)
