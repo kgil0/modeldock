@@ -563,3 +563,29 @@ def generate_claim_code(request: ClaimCodeRequest):
         "code": code,
         "user_id": request.user_id
     }
+
+@app.delete("/node/{node_id}")
+def delete_node(node_id: str, user_id: str):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+
+    cursor.execute(
+        "DELETE FROM nodes WHERE id = ? AND user_id = ?",
+        (node_id, user_id)
+    )
+
+    deleted = cursor.rowcount
+
+    conn.commit()
+    conn.close()
+
+    if deleted == 0:
+        raise HTTPException(
+            status_code=404,
+            detail="Node not found"
+        )
+
+    return {
+        "status": "deleted",
+        "node_id": node_id
+    }
