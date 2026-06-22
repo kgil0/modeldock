@@ -23,10 +23,10 @@ export default function Home() {
   const [claimLoading, setClaimLoading] = useState(false);  
   
   useEffect(() => {
-    const savedLogin = localStorage.getItem("modeldock_logged_in");
+    const savedToken = localStorage.getItem("modeldock_token");
     const savedUserId = localStorage.getItem("modeldock_user_id");
 
-    if (savedLogin === "true" && savedUserId) {
+    if (savedToken && savedUserId) {
       setLoggedIn(true);
       setUserId(savedUserId);
     }
@@ -103,6 +103,7 @@ export default function Home() {
 
 
     setLoading(false);
+ 
   }
 
   useEffect(() => {
@@ -154,7 +155,7 @@ if (!loggedIn) {
 
             if (data.status ==="ok") {
               setLoggedIn(true);
-              localStorage.setItem("modeldock_logged_in", "true");
+              localStorage.setItem("modeldock_token", data.token);
               localStorage.setItem("modeldock_user_id", data.user.id);
               setUserId(data.user.id);
             }
@@ -202,7 +203,7 @@ if (!loggedIn) {
 
         <button
           onClick={() => {
-            localStorage.removeItem("modeldock_logged_in");
+            localStorage.removeItem("modeldock_token");
             localStorage.removeItem("modeldock_user_id");
             setUserId("");
             setLoggedIn(false);
@@ -463,6 +464,24 @@ if (!loggedIn) {
                 >
                   {node.status}
                 </span>
+                
+                <button
+                  onClick={async (e) => {
+                    e.stopPropagation();
+
+                    if (!confirm(`Delete node${node.name}?`)) return;
+
+                    await fetch(`/api/node/${node.id}?user_id=${userId}`, {
+                      method: "DELETE",
+                    });
+
+                    loadData();
+                  }}
+                  className="ml-3 bg-red-700 hover:bg-red-600 px-3 py-1 rounded text-sm"
+                >
+                  Delete
+                </button>
+
               </div>
 
               <p className="text-sm text-zinc-400 mt-3">
