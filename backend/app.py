@@ -135,7 +135,7 @@ def get_all_nodes(user_id: str | None = None):
                 if seconds_since_seen <= 30:
                     node_status = "online"
 
-                elif seconds_since_seen <= 60:
+                elif seconds_since_seen <= 120:
                       node_status = "stale"
             except:
                 node_status = "offline"
