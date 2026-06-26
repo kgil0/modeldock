@@ -537,7 +537,16 @@ if (!loggedIn) {
 
         <select
           value={selectedNode}
-          onChange={(e) => setSelectedNode(e.target.value)}
+          onChange={(e) => {
+            const nodeId = e.target.value;
+            setSelectedNode(nodeId);
+
+            const node = nodes.find((n: any) => n.id === nodeId);
+
+            if (node?.models?.length > 0) {
+              setSelectedModel(node.models[0]);
+            }
+          }}
           className="w-full bg-zinc-900 p-4 rounded text-white mb-4"
         >
           {nodes.map((node: any) => (
@@ -554,10 +563,12 @@ if (!loggedIn) {
           className="w-full bg-zinc-900 p-4 rounded text-white mb-4"
         >
 
-          {models.map((model: any) => (
-            <option key={model.name} value={model.name}>
-              {model.name}
-            </option>
+          {nodes
+            .find((node: any) => node.id === selectedNode)
+            ?.models?.map((modelName: string) => (
+              <option key={modelName} value={modelName}>
+                {modelName}
+              </option>
           ))}
         </select>
 

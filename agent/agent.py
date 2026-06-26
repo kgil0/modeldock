@@ -7,7 +7,7 @@ MODELD0CK_API = "http://127.0.0.1:8000"
 
 NODE_ID = "local-node"
 NODE_NAME = "Local VPS"
-CLAIM_CODE = None
+CLAIM_CODE = "MD-F6HU-3UFR"
 
 boot_time = time.time()
 
