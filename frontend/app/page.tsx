@@ -328,7 +328,8 @@ if (!loggedIn) {
           <button
 
             onClick={() => {
-		alert("Copy this command:\n\ncurl -sSL https://raw.githubusercontent.com/kgil0/modeldock/main/scripts/install-agent.sh | bash");
+		navigator.clipboard.writeText("curl -sSL https://raw.githubusercontent.com/kgil0/modeldock/main/scripts/install-agent.sh | bash");
+                alert("Install command copied!");
               
             }}
             className="absolute top-3 right-3 bg-zinc-800 hover:bg-zinc-700 px-3 py-1 rounded text-sm"
