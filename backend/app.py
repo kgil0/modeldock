@@ -26,6 +26,15 @@ AGENT_KEY ="b3cc1786c75522a69d945625954d2a94"
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
+class ChatTaskRequest(BaseModel):
+    node_id: str
+    model: str
+    prompt: str
+
+class DownloadModelRequest(BaseModel):
+    node_id: str
+    model: str
+
 class ChatRequest(BaseModel):
     node_id: str
     model: str
@@ -588,4 +597,280 @@ def delete_node(node_id: str, user_id: str):
     return {
         "status": "deleted",
         "node_id": node_id
+    }
+
+@app.post("/tasks/download-model")
+def create_download_model_task(request: DownloadModelRequest):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+
+    task_id = secrets.token_hex(8)
+    now = datetime.utcnow().isoformat()
+
+    cursor.execute(
+        """
+
+        INSERT INTO tasks (
+            id, node_id, type, payload, status, result, created_at, updated_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            task_id,
+            request.node_id,
+            "download_model",
+            json.dumps({"model": request.model}),
+            "pending",
+            "",
+            now,
+            now,
+        )
+    )
+
+    conn.commit()
+    conn.close()
+
+    return {
+        "status": "created",
+        "task_id": task_id
+    }
+
+
+@app.get("/agent/tasks")
+def get_agent_tasks(node_id: str):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+
+    cursor.execute(
+        """
+        SELECT id, type, payload
+        FROM tasks
+        WHERE node_id = ? AND status = 'pending'
+        ORDER BY created_at ASC
+        LIMIT 1
+        """,
+        (node_id,)
+    )
+
+    task = cursor.fetchone()
+
+    if not task:
+        conn.close()
+        return {"task": None}
+
+    task_id, task_type, payload = task
+
+    cursor.execute(
+        "UPDATE tasks SET status = ?, updated_at = ? WHERE id = ?",
+        ("running", datetime.utcnow().isoformat(), task_id)
+    )
+
+    conn.commit()
+    conn.close()
+
+    return {
+        "task": {
+            "id": task_id,
+            "type": task_type,
+            "payload": json.loads(payload)
+        }
+    }
+
+@app.post("/agent/tasks/{task_id}/complete")
+def complete_agent_task(task_id: str, result: dict):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+
+    cursor.execute(
+        "UPDATE tasks SET status = ?, result = ?, updated_at = ? WHERE id = ?",
+        (
+            "finished",
+            json.dumps(result),
+            datetime.utcnow().isoformat(),
+            task_id,
+        )
+    )
+
+    conn.commit()
+    conn.close()
+
+    return {
+        "status": "finished",
+        "task_id": task_id
+    }
+
+@app.post("/tasks/chat")
+def create_chat_task(request: ChatTaskRequest):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+
+    task_id = secrets.token_hex(8)
+    now = datetime.utcnow().isoformat()
+
+    cursor.execute(
+        """
+
+        INSERT INTO tasks (
+            id,node_id,type,payload,status,result,created_at,updated_at
+        )
+        VALUES (?,?,?,?,?,?,?,?)
+        """,
+        (
+            task_id,
+            request.node_id,
+            "chat",
+            json.dumps({
+                "model": request.model,
+                "prompt": request.prompt,
+            }),
+            "pending",
+            "",
+            now,
+            now,
+        )
+    )
+
+    conn.commit()
+    conn.close()
+
+    return {
+        "task_id": task_id,
+        "status": "created",
+    }
+
+@app.get("/tasks/{task_id}")
+def get_task(task_id: str):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+
+    cursor.execute(
+        """
+
+        SELECT status,result
+        FROM tasks
+        WHERE id=?
+        """,
+        (task_id,),
+    )
+
+    row = cursor.fetchone()
+
+    conn.close()
+
+    if not row:
+        raise HTTPException(404)
+
+    status, result = row
+
+    return {
+        "status": status,
+        "result": json.loads(result) if result else None,
+    }
+
+@app.get("/tasks")
+def list_tasks(limit: int = 50):
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+
+    cursor.execute(
+        """
+
+        SELECT
+            id,
+            node_id,
+            type,
+            payload,
+            status,
+            result,
+            created_at,
+            updated_at
+        FROM tasks
+        ORDER BY created_at DESC
+        LIMIT ?
+        """,
+        (limit,),
+    )
+
+    rows = cursor.fetchall()
+    conn.close()
+
+    tasks = []
+
+    for row in rows:
+        item = dict(row)
+
+        if item["payload"]:
+            try:
+                item["payload"] = json.loads(item["payload"])
+            except Exception:
+                pass
+
+        if item["result"]:
+            try:
+                item["result"] = json.loads(item["result"])
+            except Exception:
+                pass
+
+        tasks.append(item)
+
+    return {
+        "tasks": tasks
+    }
+
+@app.get("/nodes")
+def get_nodes():
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT *
+        FROM nodes
+        ORDER BY last_seen DESC
+    """)
+
+    rows = cursor.fetchall()
+    conn.close()
+
+    nodes = []
+
+    for row in rows:
+        item = dict(row)
+
+        if item.get("models"):
+            try:
+                item["models"] = json.loads(item["models"])
+            except Exception:
+                item["models"] = []
+
+        nodes.append(item)
+    return {
+        "nodes": nodes
+    }
+
+@app.get("/models/catalog")
+def get_models_catalog():
+    try:
+        with open("models_catalog.json", "r") as f:
+            models = json.load(f)
+
+        return {
+            "models": models
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=str(e)
+        )
+
+@app.get("/cloud-gpus")
+def cloud_gpus():
+
+    with open("cloud_gpu_catalog.json", "r") as f:
+        gpus = json.load(f)
+
+    return {
+        "gpus": gpus
     }

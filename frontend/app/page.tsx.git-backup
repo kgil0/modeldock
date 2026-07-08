@@ -20,11 +20,8 @@ export default function Home() {
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
   const [claimCode, setClaimCode] = useState("");
-  const [claimLoading, setClaimLoading] = useState(false);
-  const [tasks, setTasks] = useState<any[]>([]);
-  const [catalog, setCatalog] = useState<any[]>([]);
-  const [downloading, setDownloading] = useState<Record<string, boolean>>({});  
-
+  const [claimLoading, setClaimLoading] = useState(false);  
+  
   useEffect(() => {
     const savedToken = localStorage.getItem("modeldock_token");
     const savedUserId = localStorage.getItem("modeldock_user_id");
@@ -37,14 +34,6 @@ export default function Home() {
 
   async function loadData() {
     try {
-      const catalogRes = await fetch("/api/models/catalog");
-      const catalogData = await catalogRes.json();
-      setCatalog(catalogData.models || []);
-
-      const tasksRes = await fetch("/api/tasks");
-      const tasksData = await tasksRes.json();
-      setTasks(tasksData.tasks || []);
-
       const statusRes = await fetch("/api/ollama/status");
       const statusData = await statusRes.json();
 
@@ -70,7 +59,9 @@ export default function Home() {
     setResponse("");
 
     try {
-      const createRes = await fetch("/api/tasks/chat", {
+      setStreamingMessage("");
+
+      const res = await fetch("/api/chat/stream", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -82,57 +73,37 @@ export default function Home() {
         }),
       });
 
-      const created = await createRes.json();
-      const taskId = created.task_id;
+      const reader = res.body?.getReader();
 
-      let finalResponse = "";
-
-      for (let i = 0; i < 120; i++) {
-        const taskRes = await fetch(`/api/tasks/${taskId}`);
-        const task = await taskRes.json();
-
-        if (task.status === "finished") {
-          finalResponse = task.result?.response || JSON.stringify(task.result);
-          break;
-        }
-        
-        await new Promise((resolve) => setTimeout(resolve, 1000));
+      if (!reader) {
+        setResponse("No response stream.");
+        return;
       }
-      
-      setResponse(finalResponse || "Task timeout.");
+
+      const decoder = new TextDecoder();
+      let fullText = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+
+        if (done) break;
+
+        const chunk = decoder.decode(value);
+        fullText += chunk;
+
+        setStreamingMessage(fullText);
+      }
+
+      setResponse(fullText);
+      setStreamingMessage("");
+
     } catch {
       setResponse("Error talking to model.");
     }
 
+
     setLoading(false);
-  }
-
-  async function downloadModel(model: string) {
-    setDownloading((prev) => ({
-      ...prev,
-      [model]: true,
-    }));
-
-    try {
-      await fetch("/api/tasks", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          node_id: selectedNode,
-          model,
-        }),
-      });
-
-      await loadData();
-
-    } finally {
-      setDownloading((prev) => ({
-        ...prev,
-        [model]: false,
-      }));
-    }
+ 
   }
 
   useEffect(() => {
@@ -561,62 +532,6 @@ if (!loggedIn) {
         </div>
       </section>
 
-      <section className="bg-zinc-950 border border-zinc-800 p-6 rounded-xl mb-8">
-        <h2 className="text-2xl mb-4">Model Store</h2>
-
-        <div className="grid grid-cols-1 gap-4">
-          {catalog.map((model: any) => {
-            const installed = nodes
-              .find((n: any) => n.id === selectedNode)
-              ?.models?.some((m: string) => m.startsWith(model.name));
-
-            return (
-              <div
-                key={model.name}
-                className="bg-zinc-900 rounded-xl p-5 border border-zinc-800"
-              >
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <h3 className="text-xl font-bold">{model.title}</h3>
-                    <p className="text-sm text-zinc-500">{model.name}</p>
-                    <p className="text-sm text-zinc-400 mt-2">{model.description}</p>
-
-                    <div className="flex gap-2 mt-3 flex-wrap">
-                      {model.tags?.map((tag: string) => (
-                        <span
-                          key={tag}
-                          className="text-xs bg-zinc-800 px-2 py-1 rounded"
-                        >
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
-
-                    <div className="text-sm text-zinc-400 mt-3">
-                      Author: {model.author} . Size: {model.size} . RAM: {model.ram}
-                    </div>
-                  </div>
-
-                  {installed ? (
-                    <span className="text-green-400 font-semibold">
-                      Installed
-                    </span>
-                  ) : (
-                    <button
-                      onClick={() => downloadModel(model.name)}
-                      disabled={downloading[model.name]}
-                      className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 px-4 py-2 rounded"
-                    >
-                      {downloading[model.name] ? "Downloading..." : "Download"}
-                    </button>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </section>
-
       <section className="bg-zinc-950 border border-zinc-800 p-6 rounded-xl">
         <h2 className="text-2xl mb-4">Chat</h2>
 
@@ -718,52 +633,7 @@ if (!loggedIn) {
                 </div>
               ))}
             </div>
-          </div>
-         
-          <div className="mt-10">
-            <h3 className="text-xl font-bold mb-4">
-              Tasks
-            </h3>
-
-            <div className="space-y-3">
-              {tasks.map((task: any) => (
-                <div
-                  key={task.id}
-                  className="bg-zinc-900 border border-zinc-800 p-4 rounded-xl"
-                >
-                  <div className="flex item-center justify-between">
-                    <div>
-                      <div className="font-bold">
-                        {task.type}
-                      </div>
-
-                      <div className="text-sm text-zinc-500">
-                        Node: {task.node_id}
-                      </div>
-                    </div>
-
-                    <span
-                      className={
-                        task.status === "finished"
-                          ? "text-green-400 font-semibold"
-                          : task.status === "running"
-                          ? "text-yellow-400 font-semibold"
-                          : task.status === "failed"
-                          ? "text-red-400 font-semibold"
-                          : "text-zinc-400 font-semibold"
-                      }
-                    >
-                      {task.status}
-                    </span>
-                  </div>
-
-                  <div className="text-xs text-zinc-500 mt-2">
-                    {task.created_at}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+          </div>  
       </section>
     </main>
   );

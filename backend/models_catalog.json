@@ -1,0 +1,54 @@
+[
+  {
+    "name": "tinyllama",
+    "title": "TinyLlama 1B",
+    "author": "TinyLlama",
+    "size": "637 MB",
+    "ram": "2 GB",
+    "tags": [
+      "chat",
+      "fast",
+      "small"
+    ],
+    "description": "Very small and extremely fast language model."
+  },
+  {
+    "name": "qwen2.5:0.5b",
+    "title": "Qwen 2.5 0.5B",
+    "author": "Alibaba",
+    "size": "398 MB",
+    "ram": "2 GB",
+    "tags": [
+      "chat",
+      "reasoning",
+      "small"
+    ],
+    "description": "Excellent tiny reasoning model."
+  },
+  {
+    "name": "smollm2:135m",
+    "title": "SmolLM2 135M",
+    "author": "HuggingFace",
+    "size": "95 MB",
+    "ram": "512 MB",
+    "tags": [
+      "tiny",
+      "edge",
+      "fast"
+    ],
+    "description": "Ultra lightweight model for low-end hardware."
+  },
+  {
+    "name": "gemma3",
+    "title": "Gemma 3",
+    "author": "Google",
+    "size": "3.3 GB",
+    "ram": "8 GB",
+    "tags": [
+      "reasoning",
+      "coding",
+      "vision"
+    ],
+    "description": "Modern multimodal model from Google."
+  }
+]

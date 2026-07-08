@@ -1,0 +1,32 @@
+[
+  {
+    "id": "rtx4090-runpod",
+    "provider": "RunPod",
+    "gpu": "RTX 4090",
+    "vram": "24 GB",
+    "price": 0.45,
+    "currency": "EUR",
+    "region": "EU",
+    "available": true
+  },
+  {
+    "id": "a100-tensordock",
+    "provider": "TensorDock",
+    "gpu": "A100",
+    "vram": "80 GB",
+    "price": 1.80,
+    "currency": "EUR",
+    "region": "US",
+    "available": true
+  },
+  {
+    "id": "h100-vast",
+    "provider": "Vast.ai",
+    "gpu": "H100",
+    "vram": "80 GB HBM",
+    "price": 3.10,
+    "currency": "EUR",
+    "region": "EU",
+    "available": false
+  }
+]

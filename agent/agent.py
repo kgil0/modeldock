@@ -74,6 +74,74 @@ def get_metrics():
         "uptime_seconds": time.time() - boot_time,
     }
 
+def get_task():
+    try:
+        response = requests.get(
+            f"{MODELD0CK_API}/agent/tasks",
+            params={"node_id": NODE_ID},
+            timeout=5,
+        )
+
+        response.raise_for_status()
+
+        data = response.json()
+
+        return data.get("task")
+    except Exception:
+        return None
+
+def complete_task(task_id, result):
+    try:
+        requests.post(
+            f"{MODELD0CK_API}/agent/tasks/{task_id}/complete",
+            json=result,
+            timeout=10,
+        )
+    except Exception as e:
+        print("Complete failed:", e)
+
+def execute_task(task):
+    if not task:
+        return
+
+    if task["type"] == "download_model":
+        model = task["payload"]["model"]
+
+        print("Downloading:", model)
+
+        result = subprocess.run(
+            ["ollama", "pull", model],
+            capture_output=True,
+            text=True,
+        )
+
+        complete_task(
+            task["id"],
+            {
+                "returncode": result.returncode,
+                "stdout": result.stdout,
+                "stderr": result.stderr,
+            },
+        )
+
+    elif task["type"] == "chat":
+        model = task["payload"]["model"]
+        prompt = task["payload"]["prompt"]
+
+        response = requests.post(
+            "http://127.0.0.1:11434/api/generate",
+            json={
+                "model": model,
+                "prompt": prompt,
+                "stream": False,
+            },
+            timeout=600,
+        )
+
+        complete_task(
+            task["id"],
+            response.json(),
+        )
 
 def register_node():
     global CLAIM_CODE
@@ -119,4 +187,11 @@ def register_node():
 if __name__ == "__main__":
     while True:
         register_node()
+
+        task = get_task()
+
+        execute_task(task)
+
         time.sleep(10)
+
+
