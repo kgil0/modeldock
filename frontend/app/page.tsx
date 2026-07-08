@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Header from "../components/Header";
+import DashboardStats from "../components/DashboardStats";
 
 export default function Home() {
   const [status, setStatus] = useState("loading");
@@ -227,21 +229,14 @@ if (!loggedIn) {
 
   return (
     <main className="min-h-screen bg-black text-white p-10">
-      <div className="flex items-center justify-between mb-8">
-        <h1 className="text-4xl font-bold">ModelDock</h1>
-
-        <button
-          onClick={() => {
-            localStorage.removeItem("modeldock_token");
-            localStorage.removeItem("modeldock_user_id");
-            setUserId("");
-            setLoggedIn(false);
-          }}
-          className="bg-zinc-800 hover:bg-zinc-700 px-4 py-2 rounded"
-        >
-          Logout
-        </button>
-      </div>
+      <Header
+        onLogout={() => {
+          localStorage.removeItem("modeldock_token");
+          localStorage.removeItem("modeldock_user_id");
+          setUserId("");
+          setLoggedIn(false);
+        }}
+      />
       
       {detailNode && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
@@ -273,27 +268,10 @@ if (!loggedIn) {
         </div>
       )}
 
-      <div className="grid grid-cols-4 gap-4 mb-8">
-        <div className="bg-zinc-900 p-4 rounded">
-          Nodes: {nodes.length}
-        </div>
-
-        <div className="bg-zinc-900 p-4 rounded">
-          Online: {nodes.filter((n:any) => n.status === "online").length}
-        </div>
-
-        <div className="bg-zinc-900 p-4 rounded">
-          Models: {models.length}
-        </div>
-
-        <div className="bg-zinc-900 p-4 rounded">
-          Models: {models.length}
-        </div>
-
-        <div className="bg-zinc-900 p-4 rounded">
-          GPUs: {nodes.filter((n:any) => n.gpu !== "CPU Mode").length}
-        </div>
-      </div>
+      <DashboardStats
+        nodes={nodes}
+        models={models}
+      />
 
       <section className="bg-zinc-950 border border-zinc-800 p-6 rounded-xl mb-10">
         <h2 className="text-2xl mb-4">Add Computer</h2>
