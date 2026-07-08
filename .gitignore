@@ -9,3 +9,24 @@ backend/history.json
 backend/*.bak
 backend/*.bak-stream
 README.md.save
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.swp
+
+# Node
+node_modules/
+.next/
+
+# Editors
+*.save
+*.bak
+*.git-backup
+*.swp
+
+# Database
+*.db-journal
+
+# Logs
+*.log
