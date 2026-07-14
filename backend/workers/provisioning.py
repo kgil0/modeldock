@@ -1,3 +1,4 @@
+from workers.pipeline import PIPELINE
 import json
 import sqlite3
 import threading
@@ -17,30 +18,42 @@ def start_provisioning(task_id: str):
 
 
 def _provision(task_id: str):
-    # Symulacja uruchamiania GPU
-    time.sleep(5)
+    for status in PIPELINE:
+        time.sleep(2)
 
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
 
-    cursor.execute(
-        """
-        UPDATE tasks
-        SET
-            status=?,
-            updated_at=?,
-            result=?
-        WHERE id=?
-        """,
-        (
-            "running",
-            datetime.utcnow().isoformat(),
-            json.dumps({
-                "status": "running"
-            }),
-            task_id,
-        ),
-    )
+        cursor.execute(
+            """
+            SELECT result
+            FROM tasks
+            WHERE id=?
+            """,
+            (task_id,),
+        )
 
-    conn.commit()
-    conn.close()
+        row = cursor.fetchone()
+        current_result = json.loads(row[0]) if row and row[0] else {}
+
+        current_result["status"] = status
+
+        cursor.execute(
+            """
+            UPDATE tasks
+            SET
+                status=?,
+                updated_at=?,
+                result=?
+            WHERE id=?
+            """,
+            (
+                status,
+                datetime.utcnow().isoformat(),
+                json.dumps(current_result),
+                task_id,
+            ),
+        )
+
+        conn.commit()
+        conn.close()

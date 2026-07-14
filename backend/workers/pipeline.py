@@ -1,0 +1,11 @@
+from workers.states import *
+
+
+PIPELINE = [
+    TASK_PROVISIONING,
+    TASK_BOOTING,
+    TASK_WAITING_FOR_SSH,
+    TASK_INSTALLING_AGENT,
+    TASK_CLAIMING,
+    TASK_RUNNING,
+]
