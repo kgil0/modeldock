@@ -1,3 +1,4 @@
+from workers.provisioning import start_provisioning
 from providers.manager import ProviderManager
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import FastAPI, Header, HTTPException
@@ -748,12 +749,21 @@ def create_chat_task(request: ChatTaskRequest):
 @app.get("/tasks/{task_id}")
 def get_task(task_id: str):
     conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
 
     cursor.execute(
         """
 
-        SELECT status,result
+        SELECT
+            id,
+            node_id,
+            type,
+            payload,
+            status,
+            result,
+            created_at,
+            updated_at
         FROM tasks
         WHERE id=?
         """,
@@ -761,18 +771,20 @@ def get_task(task_id: str):
     )
 
     row = cursor.fetchone()
-
     conn.close()
 
     if not row:
         raise HTTPException(404)
 
-    status, result = row
+    task = dict(row)
 
-    return {
-        "status": status,
-        "result": json.loads(result) if result else None,
-    }
+    if task["payload"]:
+        task["payload"] = json.loads(task["payload"])
+
+    if task["result"]:
+        task["result"] = json.loads(task["result"])
+
+    return task
 
 @app.get("/tasks")
 def list_tasks(limit: int = 50):
@@ -925,6 +937,8 @@ def rent_gpu(request: RentGpuRequest):
 
     conn.commit()
     conn.close()
+
+    start_provisioning(task_id)
 
     return {
         "task_id": task_id,
