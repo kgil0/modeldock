@@ -881,13 +881,53 @@ def cloud_gpus():
 
 @app.post("/rent-gpu")
 def rent_gpu(request: RentGpuRequest):
-    result = provider_manager.rent_gpu(
+    task_id = secrets.token_hex(8)
+    now = datetime.utcnow().isoformat()
+
+    instance = provider_manager.rent_gpu(
         request.provider,
         request.gpu_id,
         request.hours,
     )
 
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+
+    cursor.execute(
+        """
+        INSERT INTO tasks (
+            id,
+            node_id,
+            type,
+            payload,
+            status,
+            result,
+            created_at,
+            updated_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            task_id,
+            None,
+            "rent_gpu",
+            json.dumps({
+                "provider": request.provider,
+                "gpu_id": request.gpu_id,
+                "hours": request.hours,
+            }),
+            "starting",
+            json.dumps(instance),
+            now,
+            now,
+        ),
+    )
+
+    conn.commit()
+    conn.close()
+
     return {
+        "task_id": task_id,
         "status": "starting",
-        "instance": result,
+        "instance": instance,
     }
