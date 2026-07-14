@@ -1,3 +1,4 @@
+from workers.context import TaskContext
 from workers.pipeline import PIPELINE
 import json
 import sqlite3
@@ -18,7 +19,7 @@ def start_provisioning(task_id: str):
 
 
 def _provision(task_id: str):
-    for status in PIPELINE:
+    for step in PIPELINE:
         time.sleep(2)
 
         conn = sqlite3.connect(DB_PATH)
@@ -36,7 +37,21 @@ def _provision(task_id: str):
         row = cursor.fetchone()
         current_result = json.loads(row[0]) if row and row[0] else {}
 
-        current_result["status"] = status
+        context = TaskContext(
+            task_id=task_id,
+            status=current_result.get("status",""),
+            provider=current_result.get("provider",""),
+            instance_id=current_result.get("instance_id",""),
+            gpu_id=current_result.get("gpu_id",""),
+            hours=current_result.get("hours",0),
+        )
+
+        context.metadata = current_result
+
+        step.run(context)
+
+        context.status = step.status
+        context.metadata["status"] = step.status
 
         cursor.execute(
             """
@@ -48,9 +63,9 @@ def _provision(task_id: str):
             WHERE id=?
             """,
             (
-                status,
+                step.status,
                 datetime.utcnow().isoformat(),
-                json.dumps(current_result),
+                json.dumps(context.metadata),
                 task_id,
             ),
         )
