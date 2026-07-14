@@ -1,3 +1,4 @@
+from providers.manager import ProviderManager
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import FastAPI, Header, HTTPException
 from fastapi.responses import StreamingResponse
@@ -23,6 +24,7 @@ app.add_middleware(
 OLLAMA_URL = "http://127.0.0.1:11434"
 DB_PATH = "modeldock.db"
 AGENT_KEY ="b3cc1786c75522a69d945625954d2a94"
+provider_manager = ProviderManager()
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -68,6 +70,11 @@ class RegisterRequest(BaseModel):
 
 class ClaimCodeRequest(BaseModel):
     user_id: str
+
+class RentGpuRequest(BaseModel):
+    provider: str
+    gpu_id: str
+    hours: int
 
 def init_db():
     conn = sqlite3.connect(DB_PATH)
@@ -868,9 +875,19 @@ def get_models_catalog():
 @app.get("/cloud-gpus")
 def cloud_gpus():
 
-    with open("cloud_gpu_catalog.json", "r") as f:
-        gpus = json.load(f)
+    return {
+        "gpus": provider_manager.list_all_gpus()
+    }
+
+@app.post("/rent-gpu")
+def rent_gpu(request: RentGpuRequest):
+    result = provider_manager.rent_gpu(
+        request.provider,
+        request.gpu_id,
+        request.hours,
+    )
 
     return {
-        "gpus": gpus
+        "status": "starting",
+        "instance": result,
     }
