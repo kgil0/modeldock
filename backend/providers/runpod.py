@@ -1,13 +1,43 @@
+import os
 import secrets
+
+import requests
+from dotenv import load_dotenv
 
 from .provider import CloudProvider
 
 
+load_dotenv()
+
+RUNPOD_API_URL = "https://rest.runpod.io/v1"
+
+
 class RunPodProvider(CloudProvider):
+    def __init__(self):
+        self.api_key = os.getenv("RUNPOD_API_KEY", "")
+
+    def _headers(self):
+        if not self.api_key:
+            raise RuntimeError("RUNPOD_API_KEY is not configured")
+
+        return {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json",
+        }
+
+    def list_pods(self):
+        response = requests.get(
+            f"{RUNPOD_API_URL}/pods",
+            headers=self._headers(),
+            timeout=20,
+        )
+        response.raise_for_status()
+        return response.json()
+
     def list_gpus(self):
         return [
             {
-                "id":"runpod-rtx4090",
+                "id": "runpod-rtx4090",
                 "provider": "runpod",
                 "gpu": "RTX4090",
                 "vram": "24 GB",
@@ -16,7 +46,7 @@ class RunPodProvider(CloudProvider):
                 "region": "EU",
                 "available": True,
             }
-         ]
+        ]
 
     def rent_gpu(self, gpu_id, hours):
         return {
@@ -40,4 +70,3 @@ class RunPodProvider(CloudProvider):
             "instance_id": instance_id,
             "status": "deleted",
         }
-
