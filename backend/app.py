@@ -1,3 +1,4 @@
+from providers.runpod import RunPodProvider
 from workers.provisioning import start_provisioning
 from providers.manager import ProviderManager
 from fastapi.middleware.cors import CORSMiddleware
@@ -945,3 +946,18 @@ def rent_gpu(request: RentGpuRequest):
         "status": "starting",
         "instance": instance,
     }
+
+@app.get("/runpod/pods")
+def runpod_pods():
+    provider = RunPodProvider()
+
+    try:
+        return {
+            "success": True,
+            "pods": provider.list_pods()
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e)
+        }
