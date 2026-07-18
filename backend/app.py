@@ -1009,3 +1009,19 @@ def runpod_gpus(
         "count": len(gpus),
         "gpus": gpus,
     }
+class RunPodDryRunRequest(BaseModel):
+    gpu_id: str
+    name: str = "modeldock-test"
+@app.post("/runpod/pods/dry-run")
+def runpod_pod_dry_run(request: RunPodDryRunRequest):
+    provider = RunPodProvider()
+    payload = provider.create_pod_payload(
+        name=request.name,
+        gpu_type_id=request.gpu_id,
+    )
+    return {
+        "success": True,
+        "dry_run": True,
+        "message": "No Pod was created.",
+        "payload": payload,
+    }
