@@ -1,3 +1,4 @@
+from typing import Optional
 from providers.runpod import RunPodProvider
 from workers.provisioning import start_provisioning
 from providers.manager import ProviderManager
@@ -961,3 +962,50 @@ def runpod_pods():
             "success": False,
             "error": str(e)
         }
+
+@app.get("/runpod/gpus")
+def runpod_gpus(
+    min_vram: int = 0,
+    max_price: Optional[float] = None,
+):
+    try:
+        raw_gpus = RunPodProvider().list_gpus()
+    except Exception as exc:
+        return {
+            "success": False,
+            "error": str(exc),
+        }
+
+    gpus = []
+
+    for gpu in raw_gpus:
+        lowest_price = gpu.get("lowestPrice") or {}
+        price = lowest_price.get("uninterruptablePrice")
+        vram = gpu.get("memoryInGb") or 0
+
+        if price is None:
+            continue
+
+        if vram < min_vram:
+            continue
+
+        if max_price is not None and price > max_price:
+            continue
+
+        gpus.append({
+            "gpu_id": gpu["id"],
+            "name": gpu["displayName"],
+            "vram_gb": vram,
+            "price_per_hour": price,
+            "stock_status": lowest_price.get("stockStatus"),
+            "secure_cloud": gpu.get("secureCloud", False),
+            "community_cloud": gpu.get("communityCloud", False),
+        })
+
+    gpus.sort(key=lambda item: item["price_per_hour"])
+
+    return {
+        "success": True,
+        "count": len(gpus),
+        "gpus": gpus,
+    }
