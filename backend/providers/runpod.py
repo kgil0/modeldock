@@ -34,19 +34,85 @@ class RunPodProvider(CloudProvider):
         response.raise_for_status()
         return response.json()
 
+    def _graphql(self, query, variables=None):
+        response = requests.post(
+            "https://api.runpod.io/graphql",
+            headers=self._headers(),
+            json={
+                "query": query,
+                "variables": variables or {},
+            },
+            timeout=20,
+        )
+
+        try:
+            result = response.json()
+        except ValueError:
+            raise RuntimeError(
+                f"RunPod GraphQL returned HTTP {response.status_code} "
+                "with an invalid JSON response"
+            )
+
+        if not response.ok or result.get("errors"):
+            details = result.get("errors", result)
+            raise RuntimeError(
+                f"RunPod GraphQL error ({response.status_code}): {details}"
+            )
+
+        return result["data"]
+
+
     def list_gpus(self):
-        return [
-            {
-                "id": "runpod-rtx4090",
-                "provider": "runpod",
-                "gpu": "RTX4090",
-                "vram": "24 GB",
-                "price": 0.45,
-                "currency": "EUR",
-                "region": "EU",
-                "available": True,
+        query = """
+        query GpuCatalog($priceInput: GpuLowestPriceInput!) {
+          gpuTypes {
+            id
+            displayName
+            memoryInGb
+            secureCloud
+            communityCloud
+            lowestPrice(input: $priceInput) {
+              stockStatus
+              uninterruptablePrice
+              availableGpuCounts
             }
-        ]
+          }
+        }
+        """
+
+        data = self._graphql(
+            query,
+            {
+                "priceInput": {
+                    "gpuCount": 1
+                }
+            },
+        )
+
+        return data["gpuTypes"]
+
+    def create_pod_payload(
+        self,
+        name="modeldock-test",
+        gpu_type_id="NVIDIA GeForce RTX 4090",
+        image_name="runpod/pytorch:2.1.0-py3.10-cuda11.8.0-devel-ubuntu22.04",
+    ):
+        return {
+            "name": name,
+            "imageName": image_name,
+            "gpuTypeIds": [gpu_type_id],
+            "gpuCount": 1,
+            "containerDiskInGb": 50,
+            "volumeInGb": 20,
+            "ports": [
+                "11434/http",
+                "22/tcp"
+            ],
+            "env": {
+                "MODELDOCK": "true"
+            }
+        }
+
 
     def rent_gpu(self, gpu_id, hours):
         return {
