@@ -31,3 +31,5 @@ node_modules/
 # Logs
 *.log
 backend/.env
+backend/nohup.out
+backend/uvicorn.log
